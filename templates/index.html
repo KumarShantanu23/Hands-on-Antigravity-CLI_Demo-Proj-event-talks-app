@@ -27,7 +27,23 @@
                     <p id="feed-meta" class="subtitle">Fetching updates from Google Cloud...</p>
                 </div>
             </div>
-            <div class="header-right">
+            <div class="header-right" style="display: flex; gap: 0.75rem; align-items: center;">
+                <button id="theme-toggle" class="btn btn-secondary" onclick="toggleTheme()" title="Toggle Dark/Light Mode" style="padding: 0; display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%;">
+                    <svg id="theme-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <button id="export-csv-btn" class="btn btn-secondary hidden" onclick="exportToCSV()">
+                    <span>Export CSV</span>
+                </button>
                 <button id="refresh-btn" class="btn btn-primary" onclick="fetchReleases()">
                     <span class="btn-text">Refresh Feed</span>
                     <svg class="spinner" id="refresh-spinner" viewBox="0 0 24 24" width="20" height="20">
@@ -39,6 +55,17 @@
 
         <!-- Main Content Area -->
         <main class="content-area">
+            <!-- Search Filter Bar -->
+            <div id="search-container" class="search-container hidden">
+                <div class="search-wrapper">
+                    <svg class="search-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="search-input" placeholder="Filter release notes by keywords (e.g. sql, tables, performance)..." oninput="handleSearch()">
+                </div>
+            </div>
+
             <!-- Loading and Error States -->
             <div id="loader" class="state-container hidden">
                 <div class="pulse-ring"></div>
@@ -59,6 +86,13 @@
             <!-- Releases Container -->
             <div id="releases-grid" class="releases-grid">
                 <!-- Dynamically generated items go here -->
+            </div>
+
+            <!-- Load More Pagination -->
+            <div id="load-more-container" class="load-more-container hidden">
+                <button id="load-more-btn" class="btn btn-secondary" onclick="loadMoreReleases()">
+                    <span>Load More Updates</span>
+                </button>
             </div>
         </main>
 

@@ -1,5 +1,7 @@
 // State Management
 let currentReleases = [];
+let filteredReleases = [];
+let visibleCount = 10;
 let selectedRelease = null;
 
 // DOM Elements
@@ -20,6 +22,17 @@ const sendTweetBtn = document.getElementById('send-tweet-btn');
 
 // Initialize application on load
 document.addEventListener('DOMContentLoaded', () => {
+    // Check saved theme
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-mode');
+        const themeIcon = document.getElementById('theme-icon');
+        if (themeIcon) {
+            themeIcon.innerHTML = `
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            `;
+        }
+    }
     fetchReleases();
     setupTweetTextarea();
 });
@@ -30,6 +43,17 @@ async function fetchReleases() {
     setLoadingState(true);
     errorState.classList.add('hidden');
     releasesGrid.innerHTML = '';
+    
+    // Hide search & load-more during loading
+    const searchContainer = document.getElementById('search-container');
+    if (searchContainer) searchContainer.classList.add('hidden');
+    const loadMoreContainer = document.getElementById('load-more-container');
+    if (loadMoreContainer) loadMoreContainer.classList.add('hidden');
+
+    const csvBtn = document.getElementById('export-csv-btn');
+    if (csvBtn) {
+        csvBtn.classList.add('hidden');
+    }
 
     try {
         const response = await fetch('/api/releases');
@@ -37,13 +61,28 @@ async function fetchReleases() {
 
         if (response.ok && data.status === 'success') {
             currentReleases = data.releases;
+            filteredReleases = [...currentReleases];
+            visibleCount = 10;
             
             // Update Headers
             feedTitle.textContent = data.title || 'BigQuery Release Notes';
             feedMeta.textContent = `Showing ${currentReleases.length} recent updates`;
             
+            // Show Export CSV button
+            const csvBtn = document.getElementById('export-csv-btn');
+            if (csvBtn) {
+                csvBtn.classList.remove('hidden');
+            }
+            
+            // Show Search bar
+            const searchContainer = document.getElementById('search-container');
+            if (searchContainer) {
+                searchContainer.classList.remove('hidden');
+                document.getElementById('search-input').value = '';
+            }
+            
             // Render releases
-            renderReleases(currentReleases);
+            renderVisibleReleases();
         } else {
             showError(data.message || 'Failed to fetch release notes from the server.');
         }
@@ -90,22 +129,29 @@ function formatDate(dateStr) {
 }
 
 // Render list of releases
-function renderReleases(releases) {
-    if (!releases || releases.length === 0) {
+function renderVisibleReleases() {
+    releasesGrid.innerHTML = '';
+    
+    if (!filteredReleases || filteredReleases.length === 0) {
         releasesGrid.innerHTML = `
             <div class="state-container">
-                <p>No release notes found in this feed.</p>
+                <p>No release notes match your search criteria.</p>
             </div>
         `;
+        const loadMoreContainer = document.getElementById('load-more-container');
+        if (loadMoreContainer) {
+            loadMoreContainer.classList.add('hidden');
+        }
         return;
     }
 
-    releases.forEach((release, index) => {
+    const chunk = filteredReleases.slice(0, visibleCount);
+
+    chunk.forEach((release, index) => {
         const card = document.createElement('article');
         card.className = 'release-card';
-        card.style.animationDelay = `${index * 0.05}s`;
+        card.style.animationDelay = `${(index % 10) * 0.05}s`;
 
-        // Parse title and extract date or clean title
         const formattedDate = formatDate(release.updated);
 
         card.innerHTML = `
@@ -114,11 +160,19 @@ function renderReleases(releases) {
                     <h2>${escapeHTML(release.title)}</h2>
                     <span class="release-date">${escapeHTML(formattedDate)}</span>
                 </div>
-                <button class="tweet-shortcut-btn" title="Tweet about this update" onclick="openTweetModal(${index})">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
-                    </svg>
-                </button>
+                <div class="card-action-buttons">
+                    <button class="copy-shortcut-btn" title="Copy text to clipboard" onclick="copyCardToClipboard(${index}, this)">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                    <button class="tweet-shortcut-btn" title="Tweet about this update" onclick="openTweetModal(${index})">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div class="card-content">
                 ${release.summary}
@@ -126,6 +180,15 @@ function renderReleases(releases) {
         `;
         releasesGrid.appendChild(card);
     });
+
+    const loadMoreContainer = document.getElementById('load-more-container');
+    if (loadMoreContainer) {
+        if (visibleCount < filteredReleases.length) {
+            loadMoreContainer.classList.remove('hidden');
+        } else {
+            loadMoreContainer.classList.add('hidden');
+        }
+    }
 }
 
 // Safe escape HTML
@@ -160,7 +223,7 @@ function setupTweetTextarea() {
 
 // Open Tweet Modal
 function openTweetModal(index) {
-    selectedRelease = currentReleases[index];
+    selectedRelease = filteredReleases[index];
     if (!selectedRelease) return;
 
     // Build tweet text preview
@@ -205,4 +268,145 @@ function publishTweet() {
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
     window.open(twitterUrl, '_blank');
     closeModal();
+}
+
+// Copy release details to clipboard
+function copyCardToClipboard(index, button) {
+    const release = filteredReleases[index];
+    if (!release) return;
+
+    // Convert HTML summary to plain text
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = release.summary;
+    const plainSummary = tempDiv.textContent || tempDiv.innerText || '';
+
+    const textToCopy = `BigQuery Update: ${release.title}\nDate: ${formatDate(release.updated)}\nLink: ${release.link}\n\n${plainSummary.trim()}`;
+
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        // Visual feedback
+        button.classList.add('copied');
+        const originalSVG = button.innerHTML;
+        // Checkmark SVG
+        button.innerHTML = `
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        `;
+
+        setTimeout(() => {
+            button.classList.remove('copied');
+            button.innerHTML = originalSVG;
+        }, 2000);
+    }).catch(err => {
+        alert('Failed to copy to clipboard: ' + err);
+    });
+}
+
+// Export current releases to CSV
+function exportToCSV() {
+    if (!currentReleases || currentReleases.length === 0) return;
+
+    const headers = ['ID', 'Title', 'Link', 'Date', 'Summary'];
+    
+    const rows = currentReleases.map(release => {
+        // Convert summary HTML to plain text
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = release.summary;
+        const plainSummary = tempDiv.textContent || tempDiv.innerText || '';
+
+        // Escape double quotes by doubling them
+        const escapeCSVField = (field) => {
+            const str = (field || '').toString();
+            return `"${str.replace(/"/g, '""')}"`;
+        };
+
+        return [
+            escapeCSVField(release.id),
+            escapeCSVField(release.title),
+            escapeCSVField(release.link),
+            escapeCSVField(formatDate(release.updated)),
+            escapeCSVField(plainSummary.trim())
+        ];
+    });
+
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `bigquery_release_notes_${new Date().toISOString().slice(0,10)}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Load more releases (pagination)
+function loadMoreReleases() {
+    visibleCount += 10;
+    renderVisibleReleases();
+}
+
+// Client-side search and filtering
+function handleSearch() {
+    const query = document.getElementById('search-input').value.toLowerCase().trim();
+    
+    if (!query) {
+        filteredReleases = [...currentReleases];
+    } else {
+        filteredReleases = currentReleases.filter(release => {
+            const titleMatch = (release.title || '').toLowerCase().includes(query);
+            
+            // Clean HTML tags from summary for searching text
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = release.summary || '';
+            const plainSummary = tempDiv.textContent || tempDiv.innerText || '';
+            const contentMatch = plainSummary.toLowerCase().includes(query);
+            
+            return titleMatch || contentMatch;
+        });
+    }
+    
+    // Reset to first page
+    visibleCount = 10;
+    
+    // Update count in header meta
+    if (query) {
+        feedMeta.textContent = `Found ${filteredReleases.length} matching updates`;
+    } else {
+        feedMeta.textContent = `Showing ${currentReleases.length} recent updates`;
+    }
+    
+    renderVisibleReleases();
+}
+
+// Toggle Dark/Light Mode Theme
+function toggleTheme() {
+    const body = document.body;
+    body.classList.toggle('light-mode');
+    
+    const themeIcon = document.getElementById('theme-icon');
+    if (body.classList.contains('light-mode')) {
+        // Moon Icon
+        themeIcon.innerHTML = `
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        `;
+        localStorage.setItem('theme', 'light');
+    } else {
+        // Sun Icon
+        themeIcon.innerHTML = `
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        `;
+        localStorage.setItem('theme', 'dark');
+    }
 }
