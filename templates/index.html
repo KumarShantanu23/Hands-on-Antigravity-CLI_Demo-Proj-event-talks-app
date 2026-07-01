@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Beautiful dashboard for tracking BigQuery Release Notes. Custom-designed to read official feeds, select updates, and tweet about them.">
+    <title>BigQuery Release Notes Hub</title>
+    
+    <!-- Modern Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- CSS File -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="glass-bg"></div>
+    
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo-badge">BQ</div>
+                <div>
+                    <h1 id="feed-title">BigQuery Release Notes</h1>
+                    <p id="feed-meta" class="subtitle">Fetching updates from Google Cloud...</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <button id="refresh-btn" class="btn btn-primary" onclick="fetchReleases()">
+                    <span class="btn-text">Refresh Feed</span>
+                    <svg class="spinner" id="refresh-spinner" viewBox="0 0 24 24" width="20" height="20">
+                        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="40 20"></circle>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+            <!-- Loading and Error States -->
+            <div id="loader" class="state-container hidden">
+                <div class="pulse-ring"></div>
+                <p>Retrieving the latest updates...</p>
+            </div>
+            
+            <div id="error-state" class="state-container error-card hidden">
+                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <h3>Failed to load feed</h3>
+                <p id="error-message">Something went wrong.</p>
+                <button class="btn btn-secondary" onclick="fetchReleases()">Try Again</button>
+            </div>
+
+            <!-- Releases Container -->
+            <div id="releases-grid" class="releases-grid">
+                <!-- Dynamically generated items go here -->
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>BigQuery Release Notes Hub &bull; Powered by Python Flask & Vanilla Web Tech</p>
+        </footer>
+    </div>
+
+    <!-- Twitter Composer Modal -->
+    <div id="tweet-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Share to Twitter / X</h2>
+                <button class="close-btn" onclick="closeModal()">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-desc">Customize your post before sharing it with the community:</p>
+                <textarea id="tweet-textarea" maxlength="280" placeholder="What's happening?"></textarea>
+                <div class="char-count-row">
+                    <span id="char-counter">0 / 280</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button id="send-tweet-btn" class="btn btn-twitter" onclick="publishTweet()">
+                    <span>Post Update</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS File -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
